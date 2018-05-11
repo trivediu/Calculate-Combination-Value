@@ -43,11 +43,15 @@ ENDM
 	error				BYTE	"ERROR!",0
 
 	;Numerical (integer and/or float) variable definitions
-	n		DWORD	0			;the value of n 
-	r		DWORD	0			;the value of r
-	answer	DWORD	?			;the user's answer
-	int1	DWORD	?			;temporary int for now
-	answerSize DWORD ?			;
+	n			real4	0.			;the value of n 
+	n2			real4	1.
+	r			real4	0.			;the value of r
+	answer		DWORD	?			;the user's answer
+	int1		DWORD	?			;temporary int for now
+	realv1		real4	1.0			;
+	dwordebx	DWORD	?			;
+	dwordeax	DWORD	?			;
+	answerSize	DWORD	?			;
 
 
 ;***START PROGRAM HERE***
@@ -61,7 +65,7 @@ main PROC
 ; (insert executable instructions here)
 	
 		call Randomize						;seed random number generator
-		;finit							;initialize the FPU, though not used some commented out
+		finit							;initialize the FPU, though not used some commented out
 
 		call intro
 
@@ -74,9 +78,11 @@ main PROC
 		push OFFSET answerSize
 		call getData
 
-		push n
+		push n2
 		call factorial
-		call WriteDec
+		mov dwordeax,eax
+		fild dwordeax
+		call WriteFloat
 
 		
 	
@@ -124,6 +130,7 @@ factorial PROC
 		mov eax,[ebp+8]
 		cmp eax,0
 		ja L1
+
 		mov eax,1
 		jmp L2
 
@@ -133,8 +140,18 @@ factorial PROC
 
 
 	ReturnFact:
+		
 		mov ebx, [ebp+8]
-		mul ebx		
+		mov dwordebx,ebx
+		mov dwordeax,eax
+
+		fild dwordebx
+		fild dwordeax
+		fmul
+		fistp dwordeax
+		mov eax,dwordeax
+
+		;mul ebx		
 
 
 	L2: pop ebp
