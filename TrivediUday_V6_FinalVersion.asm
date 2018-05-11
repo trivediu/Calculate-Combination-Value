@@ -1,13 +1,9 @@
-;TITLE Program TrivediUday_HW5_V8 (.asm)     
-
 ; Author: Uday Trivedi
-; Email : trivediu@oregonstate.edu
-; Class Number / Section: CS 271-400
-; Assignment Number: 6B
-; Assignment Due Date: 12/3/2017
-; Program Description:  Homework five that will generate an array of random
-; numbers and then sort them while also displaying the median and implementing
-; susbequent extra credit options
+; Program Description:  This program will prompt the user to enter the correct
+; value of combination numbers.  The values of n and r will be randomly generated.
+; you can enter your answer and the system will inform you whether or not your answer
+; is correct.  If not correct, it will display the right answer with several additional
+; options implemented.
 
 
 INCLUDE Irvine32.inc
@@ -35,7 +31,7 @@ ENDM
 
 	;String Variable Definitions
 	introPlaceholder	BYTE	"Some intro stuff goes here. Enter a number: ",0
-	problemTitle		BYTE	"Problem #: ",0
+	problemTitle		BYTE	" ",0
 	problemLine1		BYTE	"NUmber of elements in the set (n): ",0
 	problemLine2		BYTE	"Number of elements to choose from the set (r): ",0
 	problemLine3		BYTE	"How many ways can you choose? ",0
@@ -52,8 +48,24 @@ ENDM
 	showResultEC1a		BYTE	"EXTRA CREDIT AMAZING 1: The sum calculated recursively starting from 'r' to 'n' is: ",0
 	showResultEC2		BYTE	"EXTRA CREDIT AMAZING 2: The FPU-Calculated mean of your answer and the actual answer is: ",0
 	askContinue			BYTE	"Another problem? (y/n): ",0
-	tempEnd				BYTE	"end",0
+	tempEnd				BYTE	"Ok....goodBye",0
 	tempStart			BYTE	"start",0
+	dispProbNum			BYTE	"Problem #: ",0
+	dispRight			BYTE	"Number of Questions Right: ",0
+	dispWrong			BYTE	"Number of Questions Wrong: ",0
+
+	;intro strings
+	intro1				BYTE	"Welcome to the Combination Calculator",0
+	intro2				BYTE	"         Implemented by Uday S. Trivedi",0
+	intro3				BYTE	"I'll give you a combinations problem. You enter the answer," ,0
+	intro4				BYTE	"and I'll let you know if you're right",0
+
+	intro5				BYTE	"Extra Credit[#1a]: Each Problem will be numbered",0
+	intro6				BYTE	"Extra Credit[#1b]: Score will be shown when user chooses to quit",0
+	intro7				BYTE	"Extra Credit[#2]: Factorials will be calculated/displayed in floating point",0
+	intro8				BYTE	"Do Something Amazing [3A]: Color Coding of Program for ease of viewing.  Wrong answers shown in red.",0
+	intro9				BYTE	"Do Something Amazing [3B]: The total sum from r to n will be calculated recursively",0
+	intro10				BYTE	"Do Something Amazing [3C]: The mean of your answer and the actual answer will be computed",0
 
 
 	;Numerical (integer and/or float) variable definitions
@@ -72,6 +84,14 @@ ENDM
 	right		dword	0			;the number of questions right
 	wrong		dword	0			;the number of questions wrong
 
+	orangeTextOnBlack = white + (lightblue)
+	whiteTextOnRed = white + (Red *16)
+	whiteTextOnGreen = white + (Green)
+	DefaultColor = lightgreen ;+ (Black) 
+	whiteTextOnBlack = white + (Black * 17)
+	lightColor = lightGray + (Black*16)
+
+
 ;***START PROGRAM HERE***
 .code
 ;**************************************************************************************
@@ -83,14 +103,21 @@ main PROC
 ; (insert executable instructions here)
 	
 		call Randomize				;seed random number generator
-		finit						;initialize the FPU, though not used some commented out
-
+		;finit						;initialize the FPU, though not used some commented out
 
 		;INTRO PROCEDURE
 		call intro					;call the intro procedure
 
 	_start:							;this label is used to loop if the user chooses to play again
+		finit
+		mov answer,0				;initialize answer
+		mov sum,0					;initialize sum
+		
 		;SHOW PROBLEM PROCEDURE
+		call Crlf
+		;inc problemNum				;increment the extra credit problem number by one
+		;mWriteStr dispProbNum		;display the current problem number
+		push OFFSET problemNum
 		push OFFSET n				;push the reference address of n onto stack
 		push OFFSET r				;push the reference address of r onto the stack
 		call showProblem			
@@ -112,6 +139,8 @@ main PROC
 
 
 		;showResults procedure
+		push OFFSET right			;push the right number of questions by reference
+		push OFFSET wrong			;push the wrong number of questions by reference
 		push result					;push the value of result
 		push answer					;push the value of the user's answer
 		push n						;push the value of n
@@ -131,11 +160,13 @@ main PROC
 		push answer					;the answer
 		push result					;the result
 		call average
-
+		call Crlf
 
 		;Ask the user whether to continue or not (this was not required to be a procedure)
 
 		_YNLoop:	
+			mov eax,LightColor
+			call SetTextColor
 			mWriteStrLine askContinue							;print the statement asking user to continue
 			mov edx, OFFSET userChoice							;move offset of userchoice string to read into edx
 			mov ecx, 5											;read up to 5 chars
@@ -143,19 +174,16 @@ main PROC
 
 			cmp eax,1											;if user string input is greater than 1, then error
 			jg _err												;jump to error message
-
 			mov esi, OFFSET userChoice							;move the string input offset to esi
 			mov al,[esi]										;move value of userchoice to al
 
 			cmp al,79h											;is al = y?
 			je _start											;then go back to start of program
-
 			cmp al, 59h											;is al = Y?
 			je _start											;then go back to start of program
 
 			cmp al, 6Eh											;is al = n?
 			je _end												;then go to end label of the program
-
 			cmp al, 4Eh											;is al = N?
 			je _end												;then go to end label of the program
 
@@ -164,7 +192,19 @@ main PROC
 		jmp _YNLoop												;jump back to prompt the user again y/n
 
 		_end:													;end label
-		mWriteStr	tempEnd
+		mov eax,DefaultColor
+		call SetTextColor
+		
+		mWriteStrLine dispRight									;output prompt of how many right
+		mov eax,right											;move right value to eax
+		call writeDec											;print out right value
+
+		call Crlf												;line break
+		mWriteStrLine dispWrong									;output prompt of how many wrong
+		mov eax,wrong											;move wrong value to eax
+		call writeDec											;print out wrong value
+		call Crlf												;linebreak
+		mWriteStr	tempEnd										;good bye statement
 	
 	
 		call Crlf
@@ -185,8 +225,18 @@ main ENDP
 ;**************************************************************************************
 intro PROC
 	
-	mWriteStr introPlaceHolder			;print a temp intro output for now
-	
+	;the following code will write the output lines of the introduction and extrac credit options
+	mWriteStr intro1			
+	mWriteStr intro2
+	mWriteStr intro3
+	mWriteStr intro4
+	call Crlf
+	mWriteStr intro5
+	mWriteStr intro6
+	mWriteStr intro7
+	mWriteStr intro8
+	mWriteStr intro9
+	mWriteStr intro10
 	
 	ret
 
@@ -206,48 +256,48 @@ intro ENDP
 ;**************************************************************************************
 factorial PROC
 	
-		push ebp
-		mov ebp,esp
+		push ebp							;push ebp on stack
+		mov ebp,esp							;move the value of esp into ebp
 		
-		sub esp,8
+		sub esp,8							;make space for two local variables
 
-		mov eax,[ebp+8]
+		mov eax,[ebp+8]						;access variable number 1 that was pushed and save into eax
 		;mov eax,[ebp+20]
 
 
-		cmp eax,0
+		cmp eax,0							;if eax is not zero then go to l1
 		ja L1
 
-		mov eax,1
-		jmp L2
+		mov eax,1							;if eax is zero, then set it to one
+		jmp L2								;then jump to l2
 
 	L1: dec eax
-		push eax
-		call factorial
+		push eax							;push eax onto stack
+		call factorial						;calll the factorial proc recursively
 
 
 	ReturnFact:
 		
-		mov ebx, [ebp+8]
+		mov ebx, [ebp+8]					;mov first variable to ebx
 		;mov ebx,[ebp+20]
 		
-		mov [ebp-4],ebx
-		;mov [ebp-24], ebx
-		mov [ebp-8],eax
+		mov [ebp-4],ebx						;mov ebx to first local variable
+		;mov [ebp-24], ebx					
+		mov [ebp-8],eax						;mov eax to second local variable
 		;mov [ebp-28], ebx
 
 
-		fild dword ptr [ebp-4]
+		fild dword ptr [ebp-4]				;integer load of first local variable
 		;fild dword ptr [ebp-24]
-		fild dword ptr [ebp-8]	
+		fild dword ptr [ebp-8]				;integer load of second local varibale
 		;fild dword ptr [ebp-28]
 
 
-		fmul
-		fistp dword ptr [ebp-8]
+		fmul								;calculate product in the FPU
+		fistp dword ptr [ebp-8]				;pop stack into second local varible
 		;fistp dword ptr [ebp-28]
 		
-		mov eax,[ebp-8]
+		mov eax,[ebp-8]						;mov second local variable real4 number into eax
 		;mov eax,[ebp-28]
 
 
@@ -275,6 +325,20 @@ showProblem PROC
 		
 		mov ebp,esp
 		
+		;set background
+		mov eax, whiteTextOnBlack
+		call SetTextColor
+
+
+		mov esi,[ebp+16]					;move problem number to esi
+		mov eax,[esi]						;move esi dereferenced value into eax
+		inc eax								;increment eax by one (now we have incremented problem #)
+		mov [esi],eax						;move updated value into dereferenced esi
+
+		mWriteStrLine dispProbNum			;display prompt of extra credit problem number
+		call writeDec						;output value from eax
+		call Crlf							;line break
+
 		mov esi,[ebp+12]					;move n to esi
 
 		add esi,4							;now move to the next 4-byte segment of esi
@@ -318,8 +382,8 @@ showProblem PROC
 		sub esi,4							;restore esi to it's original mem position
 
 		;Now print the problem and accompanying details
-		call Crlf
-		mWriteStr ProblemTitle				;print the title of the problem
+		;call Crlf
+		;mWriteStr ProblemTitle				;print the title of the problem
 
 		mWriteStrLine ProblemLine1			;print the first line of the problem
 
@@ -339,7 +403,7 @@ showProblem PROC
 
 
 	pop ebp
-	ret 8
+	ret 12
 
 showProblem ENDP
 
@@ -362,6 +426,9 @@ getData PROC
 
 LoopA:
 	mWriteStrLine   problemLine3	;print the part that prompts the user to input their answer
+	
+	mov eax,DefaultColor
+	call SetTextColor
 	
 	;call Crlf						;insert line break over here
 
@@ -535,6 +602,8 @@ combinations ENDP
 ;************************************************************************************************************
 showResults PROC
 		;VARIABLES used
+		;push OFFSET right [ebp+28]
+		;push OFFSET wrong [ebp+24]
 		;push result [ebp+20]
 		;push answer [ebp+16]
 		;push n		 [ebp+12]
@@ -543,6 +612,11 @@ showResults PROC
 		push ebp								;push ebp onto stack
 		mov ebp,esp								;move esp into ebp
 		sub esp,20								;make space for five local variables
+
+		mov eax,defaultColor
+		call SetTextColor
+
+
 
 		call Crlf
 		mWriteStrLine		showResult1			;"There are "
@@ -566,11 +640,29 @@ showResults PROC
 		je _Success
 
 		_Fail:
+			mov eax,whiteTextOnRed
+			call SetTextColor
+
 			mWriteStr showResultBad					;display a message informing user to improve
+			mov esi,[ebp+24]						;move value of wrong into esi
+			mov eax,[esi]							;move deref val into eax
+			inc eax									;inc eax by one
+			mov [esi],eax							;move value back into deref esi
+			
+			;mov eax,whiteTextOnBlack
+			mov eax,DefaultColor
+			call SetTextColor
+
+
 			jmp _End
 
 		_Success:
 			mWriteStr showResultGood				;display a message informing user is correct
+
+			mov esi,[ebp+28]						;move value of right into esi
+			mov eax,[esi]							;move deref val into eax
+			inc eax									;inc eax by one
+			mov [esi],eax							;move value back into deref esi
 
 		_End:
 		mWriteStrLine showResultEC1a				;"Extra Credit the sum from r to n is: ";
@@ -579,7 +671,7 @@ showResults PROC
 		
 	mov esp,ebp
     pop     ebp
-    ret     16
+    ret     24
 showResults ENDP
 
 
@@ -699,10 +791,10 @@ LoopA:
 
 	jg invalidInput					;if string size is greater than 10 jump to invalidInput
 
-	mov al, [esi]
-	cmp al,79h
-	je _start
-	jmp invalidInput
+	mov al, [esi]					;move deref into al
+	cmp al,79h						;compare to hex 79
+	je _start						;if equal goto start
+	jmp invalidInput				;if not output error message through invalid label
 
 	_start:
 	mwritestr tempStart
