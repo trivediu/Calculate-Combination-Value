@@ -29,6 +29,12 @@ mWriteStrLine	MACRO	buffer							;same as above macro, but does not have a line 
 	pop edx												;restore the edx register
 ENDM
 
+mWriteFact		MACRO									
+		mov dwordeax,eax
+		fild dwordeax
+		call WriteFloat
+ENDM
+
 
 .data
 ; (insert variable definitions here)
@@ -44,15 +50,13 @@ ENDM
 
 	;Numerical (integer and/or float) variable definitions
 	n			real4	0.			;the value of n 
-	n2			real4	1.
 	r			real4	0.			;the value of r
 	answer		DWORD	?			;the user's answer
 	int1		DWORD	?			;temporary int for now
-	realv1		real4	1.0			;
-	dwordebx	DWORD	?			;
-	dwordeax	DWORD	?			;
-	answerSize	DWORD	?			;
-
+	dwordebx	DWORD	?			;just a temp dword variable to hold the value in ebx
+	dwordeax	DWORD	?			;just a temp dword variable to hold the value in eax
+	answerSize	DWORD	?			;originally was going to be used, but now just a placeholder 
+	result		real4	?			;the correct value of the calculation
 
 ;***START PROGRAM HERE***
 .code
@@ -64,29 +68,43 @@ ENDM
 main PROC
 ; (insert executable instructions here)
 	
-		call Randomize						;seed random number generator
-		finit							;initialize the FPU, though not used some commented out
+		call Randomize				;seed random number generator
+		finit						;initialize the FPU, though not used some commented out
 
-		call intro
 
+		;INTRO PROCEDURE
+		call intro					;call the intro procedure
+
+
+		;SHOW PROBLEM PROCEDURE
 		push OFFSET n				;push the reference address of n onto stack
 		push OFFSET r				;push the reference address of r onto the stack
-		call showProblem
+		call showProblem			
 
-		push OFFSET tInput
-		push OFFSET answer
-		push OFFSET answerSize
-		call getData
 
-		push n2
-		call factorial
-		mov dwordeax,eax
-		fild dwordeax
-		call WriteFloat
+		;GETDATA PROCEDURE
+		push OFFSET tInput			;[ebp+16]  push the string array by reference
+		push OFFSET answer			;[ebp+12]  push the users answer by reference
+		push OFFSET answerSize		;[ebp+8]   push the answersize (as of now used as placeholder)
+		call getData				;call the getData procedure
+
+		
+
+		;call the COMBINATIONS procedure, which also calls the FACTORIAL procedure
+		push n						;[ebp+16] push the value of n by value
+		push r						;[ebp+12] push the value of r by value
+		push OFFSET	result			;[ebp+8]  push the result variable by reference
+		call combinations
+
+		;push 12
+		;call factorial
+		;mov dwordeax,eax
+		;fild dwordeax
+		;call WriteFloat
 
 		
 	
-	call Crlf
+		call Crlf
 	exit	; exit to operating system
 main ENDP
 
@@ -127,7 +145,13 @@ factorial PROC
 	
 		push ebp
 		mov ebp,esp
+		
+		sub esp,8
+
 		mov eax,[ebp+8]
+		;mov eax,[ebp+20]
+
+
 		cmp eax,0
 		ja L1
 
@@ -142,19 +166,30 @@ factorial PROC
 	ReturnFact:
 		
 		mov ebx, [ebp+8]
-		mov dwordebx,ebx
-		mov dwordeax,eax
+		;mov ebx,[ebp+20]
+		
+		mov [ebp-4],ebx
+		;mov [ebp-24], ebx
+		mov [ebp-8],eax
+		;mov [ebp-28], ebx
 
-		fild dwordebx
-		fild dwordeax
+
+		fild dword ptr [ebp-4]
+		;fild dword ptr [ebp-24]
+		fild dword ptr [ebp-8]	
+		;fild dword ptr [ebp-28]
+
+
 		fmul
-		fistp dwordeax
-		mov eax,dwordeax
+		fistp dword ptr [ebp-8]
+		;fistp dword ptr [ebp-28]
+		
+		mov eax,[ebp-8]
+		;mov eax,[ebp-28]
 
-		;mul ebx		
 
-
-	L2: pop ebp
+	L2: mov esp,ebp
+		pop ebp
 		ret 4
 
 factorial ENDP
@@ -163,9 +198,9 @@ factorial ENDP
 
 
 ;**************************************************************************************
-;FACTORIAL PROCEDURE
+; SWOWPROBLEM PROCEDURE
 ; Procedure to show the problem to the user and generate a random number n between
-;[3..12] and random number r from the range of [1...n]
+; [3..12] and random number r from the range of [1...n]
 ; receives: accepts n and r by value and result by reference address
 ; returns: updated values of n and r by reference
 ; preconditions: none
@@ -249,6 +284,7 @@ showProblem ENDP
 
 
 ;************************************************************************************************************
+; GETDATA PROCEDURE
 ; prompts / gets the user’s answer.
 ; receives: the OFFSET of answer and temp and value of answerSize
 ; returns: none
@@ -280,7 +316,7 @@ LoopA:
 	
 	mov esi,[ebp+16]				;point at char in string
 
-pushad
+;pushad
 loopString:							;loop looks at each char in string
     
 	mov		ebx,[ebp+12]			;move answer into ebx
@@ -315,7 +351,7 @@ loopString:							;loop looks at each char in string
 
     loop        loopString  
 	
-	popad
+	;popad
 	
 	jmp     moveOn
 
@@ -339,6 +375,87 @@ moveOn:
     pop     ebp
     ret     12
 getData ENDP
+
+
+
+
+;************************************************************************************************************
+; COMBINATIONS PROCEDURE
+; prompts / gets the user’s answer.
+; receives: the OFFSET of answer and temp and value of answerSize
+; returns: none
+; preconditions: none
+; registers changed:  eax, ebx, ecx, edx, ebp, esi, esp
+; resources used: stackoverflow.com/questions/13664778/converting-string-to-integer-in-masm-esi-difficulty
+;************************************************************************************************************
+combinations PROC
+	;ebp+16 = n
+	;ebp+12 = r
+	;ebp+ 8 = result offset
+		
+		push ebp						;push ebp onto stack
+	
+		mov ebp,esp						;move esp into ebp
+	
+		sub esp,20						;make space for four local variables
+
+	;[STEP 1] calculate n!
+	
+		push [ebp+16]					;push the value of n
+	
+		call factorial					;call the factorial recursive function
+		mov [ebp-4], eax				;store the value of n! in ebp-4
+
+	;[STEP 2] calculate r!
+	
+		push [ebp+12]					;push the value of r
+	
+		call factorial					;call the factorial recursive function
+	
+		mov [ebp-8],eax					;store the value of r! in ebp-8
+
+	;[STEP 3] calculate the value of (n-r)!
+	
+		fild dword ptr [ebp+16]			;load n on to the fpu stack
+	
+		fild dword ptr [ebp+12]			;load r on to the fpu stack
+	
+		fsub							;calculate n-r and pop the result in st(0)
+	
+		fistp dword ptr [ebp-12]		;pop the difference in to ebp-12
+	
+		push [ebp-12]					;push the difference onto the stack
+	
+		call factorial
+		mov [ebp-12], eax				;store the value of (n-r)! in ebp-12
+
+
+	;[STEP 4 ] Calculate actual combination result
+		;so far we have the following:
+		;n! is stored in ebp-4
+		;r! is stored in ebp-8
+		;(n-r)! is stored in ebp-12
+
+	;[STEP 4A] Calculate r!*(n-r)!  where * represents a multiplication procedure
+		fild dword ptr [ebp-8]			;load the value of r! into the fpu
+		fild dword ptr [ebp-12]			;load the value of (n-r)! into the fpu
+
+		fmul st(0), st(1)				;multiply the two values the value is stored in st(0)
+		
+
+
+		fild dword ptr [ebp-4]			;load the value of n! - this will be the numerator 
+										;now st(0) holds n! while st(1) holds the denominator r!(n-r)!
+
+		fdiv st(0),st(1)				;divide numerator by the denominator and store result in st(0)
+		call writeFloat
+
+
+
+	mov esp,ebp
+    pop     ebp
+    ret     12
+combinations ENDP
 ;//**************************************************************************************
 ;// (insert additional procedures here)
 
